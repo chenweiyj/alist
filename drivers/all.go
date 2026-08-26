@@ -72,6 +72,7 @@ import (
 	_ "github.com/alist-org/alist/v3/drivers/seafile"
 	_ "github.com/alist-org/alist/v3/drivers/sftp"
 	_ "github.com/alist-org/alist/v3/drivers/sjtu_netdisk"
+	_ "github.com/alist-org/alist/v3/drivers/sjtu_tbox"
 	_ "github.com/alist-org/alist/v3/drivers/smb"
 	_ "github.com/alist-org/alist/v3/drivers/streamtape"
 	_ "github.com/alist-org/alist/v3/drivers/strm"
