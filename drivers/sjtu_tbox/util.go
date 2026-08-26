@@ -238,6 +238,18 @@ func (d *SJTUTBox) normalizedUserToken() string {
 	return token
 }
 
+// rootPath returns the remote path represented by the Alist storage root.
+// RootPath is optional for backwards compatibility with configurations created
+// before the root-folder field existed, so an empty value means the drive root.
+func (d *SJTUTBox) rootPath() string {
+	root := strings.TrimSpace(strings.ReplaceAll(d.GetRootPath(), "\\", "/"))
+	root = strings.Trim(root, "/")
+	if root == "" {
+		return "/"
+	}
+	return path.Clean("/" + root)
+}
+
 func responseBody(resp *resty.Response) string {
 	body := strings.TrimSpace(resp.String())
 	if len(body) > 512 {

@@ -66,7 +66,7 @@ func (d *SJTUTBox) Drop(ctx context.Context) error {
 func (d *SJTUTBox) GetRoot(ctx context.Context) (model.Obj, error) {
 	return &model.Object{
 		ID:       "root",
-		Path:     "/",
+		Path:     d.rootPath(),
 		Name:     "root",
 		Size:     0,
 		IsFolder: true,

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/alist-org/alist/v3/internal/conf"
+	"github.com/alist-org/alist/v3/internal/driver"
 	"github.com/alist-org/alist/v3/internal/model"
 	"github.com/alist-org/alist/v3/internal/op"
 )
@@ -125,16 +126,47 @@ func TestDriverRegistrationAndCredentialFields(t *testing.T) {
 
 	info := op.GetDriverInfoMap()["SJTUTBox"]
 	fields := make(map[string]bool, len(info.Additional))
+	items := make(map[string]driver.Item, len(info.Additional))
 	for _, item := range info.Additional {
 		fields[item.Name] = true
+		items[item.Name] = item
 	}
-	for _, name := range []string{"user_token", "ja_auth_cookie"} {
+	for _, name := range []string{"root_folder_path", "user_token", "ja_auth_cookie"} {
 		if !fields[name] {
 			t.Errorf("storage configuration is missing %q", name)
 		}
 	}
+	if root := items["root_folder_path"]; root.Type != "string" || root.Default != "/" {
+		t.Errorf("root_folder_path metadata = type %q, default %q; want string and /", root.Type, root.Default)
+	}
+	if !strings.Contains(items["user_token"].Help, "https://pan.sjtu.edu.cn/") || !strings.Contains(items["user_token"].Help, "UserToken") {
+		t.Errorf("user_token help is missing login instructions: %q", items["user_token"].Help)
+	}
+	if !strings.Contains(items["ja_auth_cookie"].Help, "https://jaccount.sjtu.edu.cn/jaccount/") || !strings.Contains(items["ja_auth_cookie"].Help, "JAAuthCookie") {
+		t.Errorf("ja_auth_cookie help is missing login instructions: %q", items["ja_auth_cookie"].Help)
+	}
 	if _, err := op.GetDriver("Jbox"); err == nil {
 		t.Error("legacy Jbox driver name is still registered")
+	}
+}
+
+func TestGetRootUsesConfiguredRootPath(t *testing.T) {
+	d := &SJTUTBox{Addition: Addition{RootPath: driver.RootPath{RootFolderPath: "共享资料\\项目/"}}}
+	root, err := d.GetRoot(t.Context())
+	if err != nil {
+		t.Fatalf("GetRoot: %v", err)
+	}
+	if got, want := root.GetPath(), "/共享资料/项目"; got != want {
+		t.Fatalf("root path = %q, want %q", got, want)
+	}
+
+	d = &SJTUTBox{}
+	root, err = d.GetRoot(t.Context())
+	if err != nil {
+		t.Fatalf("GetRoot default: %v", err)
+	}
+	if got := root.GetPath(); got != "/" {
+		t.Fatalf("default root path = %q, want %q", got, "/")
 	}
 }
 
@@ -167,6 +199,7 @@ func TestIntegrationCredentials(t *testing.T) {
 	}
 
 	d := &SJTUTBox{Addition: Addition{
+		RootPath:     driver.RootPath{RootFolderPath: os.Getenv("SJTU_TBOX_ROOT_PATH")},
 		OrderBy:      "name",
 		OrderByType:  "asc",
 		UserToken:    userToken,
@@ -175,9 +208,13 @@ func TestIntegrationCredentials(t *testing.T) {
 	if err := d.Init(t.Context()); err != nil {
 		t.Fatalf("Init: %v", err)
 	}
-	objs, err := d.List(t.Context(), &model.Object{Path: "/", IsFolder: true}, model.ListArgs{})
+	root, err := d.GetRoot(t.Context())
+	if err != nil {
+		t.Fatalf("GetRoot: %v", err)
+	}
+	objs, err := d.List(t.Context(), root, model.ListArgs{})
 	if err != nil {
 		t.Fatalf("List root: %v", err)
 	}
-	t.Logf("authenticated and listed root: %d items", len(objs))
+	t.Logf("authenticated and listed root %q: %d items", root.GetPath(), len(objs))
 }
