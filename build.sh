@@ -43,6 +43,22 @@ FetchWebRelease() {
   rm -rf dist.tar.gz
 }
 
+# The upstream frontend does not know about locally added drivers. Add only the
+# two credential tips needed by SJTUTBox after every frontend download.
+PatchSJTUFrontendTranslations() {
+  for asset in public/dist/assets/entry-*.js; do
+    [ -f "$asset" ] || continue
+
+    if ! grep -q 'SJTUTBox:' "$asset"; then
+      if grep -q 'user_id:"用户ID"' "$asset"; then
+        perl -0pi -e 's/,config:/,SJTUTBox:{"ja_auth_cookie-tips":"请先登录需要 jAccount 认证的网站（例如 http:\/\/my.sjtu.edu.cn\/），然后打开 https:\/\/jaccount.sjtu.edu.cn\/jaccount\/。按下 F12 打开开发者工具，在“应用程序 -> 存储 -> Cookie”中找到 JAAuthCookie。","user_token-tips":"登录新云盘 https:\/\/pan.sjtu.edu.cn\/。按下 F12 打开开发者工具，在“应用程序 -> 存储 -> Cookie”中找到 UserToken。"},config:/' "$asset"
+      elif grep -q 'user_id:"User id"' "$asset"; then
+        perl -0pi -e 's/,config:/,SJTUTBox:{"ja_auth_cookie-tips":"First log in to a service that requires jAccount authentication (for example http:\/\/my.sjtu.edu.cn\/). Then open https:\/\/jaccount.sjtu.edu.cn\/jaccount\/, press F12, and find JAAuthCookie under Application -> Storage -> Cookies.","user_token-tips":"Log in to SJTU New Cloud Drive at https:\/\/pan.sjtu.edu.cn\/. Press F12 to open Developer Tools, then find UserToken under Application -> Storage -> Cookies."},config:/' "$asset"
+      fi
+    fi
+  done
+}
+
 BuildWinArm64() {
   echo building for windows-arm64
   chmod +x ./wrapper/zcc-arm64
@@ -293,6 +309,7 @@ MakeRelease() {
 
 if [ "$1" = "dev" ]; then
   FetchWebDev
+  PatchSJTUFrontendTranslations
   if [ "$2" = "docker" ]; then
     BuildDocker
   elif [ "$2" = "docker-multiplatform" ]; then
@@ -308,6 +325,7 @@ elif [ "$1" = "release" -o "$1" = "beta" ]; then
   else
     FetchWebRelease
   fi
+  PatchSJTUFrontendTranslations
   if [ "$2" = "docker" ]; then
     BuildDocker
   elif [ "$2" = "docker-multiplatform" ]; then

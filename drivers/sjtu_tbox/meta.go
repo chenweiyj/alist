@@ -9,7 +9,7 @@ type Addition struct {
 	driver.RootPath
 	OrderBy      string `json:"order_by" type:"select" required:"true" options:"name,modificationTime,size" default:"name"`
 	OrderByType  string `json:"order_by_type" type:"select" required:"true" options:"asc,desc" default:"asc"`
-	UserToken    string `json:"user_token" type:"text" help:"登录新云盘 https://pan.sjtu.edu.cn/，按下 F12 打开开发者工具，在“应用程序 -> 存储 -> Cookie”中找到 UserToken。填写 UserToken 后优先使用它进行认证。"`
+	UserToken    string `json:"user_token" type:"text" help:"登录新云盘 https://pan.sjtu.edu.cn/，按下 F12 打开开发者工具，在“应用程序 -> 存储 -> Cookie”中找到 UserToken。"`
 	JAAuthCookie string `json:"ja_auth_cookie" type:"text" help:"请先登录需要 jAccount 认证的网站（例如 http://my.sjtu.edu.cn/），然后打开 https://jaccount.sjtu.edu.cn/jaccount/，按下 F12 打开开发者工具，在“应用程序 -> 存储 -> Cookie”中找到 JAAuthCookie。"`
 }
 
