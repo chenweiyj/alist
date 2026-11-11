@@ -309,15 +309,17 @@ func buildPath(base, name string) string {
 
 // move a single file or folder
 func (d *SJTUTBox) moveItem(ctx context.Context, srcPath, dstDirPath, name string, isDir bool, strategy string) error {
-	// The Tencent SMH API uses the file endpoint for both file and directory
-	// copy/move operations; the item type is inferred from the source path.
-	moveItemURL := fmt.Sprintf("%s/file/%s/%s/%s", API_URL, d.libraryId, d.spaceId, d.encodePath(path.Join(dstDirPath, name)))
+	endpoint := "file"
+	if isDir {
+		endpoint = "directory"
+	}
+	moveItemURL := fmt.Sprintf("%s/%s/%s/%s/%s", API_URL, endpoint, d.libraryId, d.spaceId, d.encodePath(path.Join(dstDirPath, name)))
 
 	req := d.newClient().R().
 		SetContext(ctx).
 		SetQueryParam("access_token", d.accessToken).
 		SetQueryParam("conflict_resolution_strategy", strategy).
-		SetBody(map[string]interface{}{"from": srcPath})
+		SetBody(map[string]interface{}{"from": strings.TrimPrefix(strings.ReplaceAll(srcPath, "\\", "/"), "/")})
 
 	if isDir {
 		req.SetQueryParam("move_authority", "true")

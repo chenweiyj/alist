@@ -355,6 +355,8 @@ func (d *SJTUTBox) Rename(ctx context.Context, srcObj model.Obj, newName string)
 
 	parentPath := path.Dir(strings.ReplaceAll(srcObj.GetPath(), "\\", "/"))
 	dstPath := buildPath(parentPath, newName)
+	// The cloud API's JSON source path is relative to the space root.
+	srcPath := strings.TrimPrefix(strings.ReplaceAll(srcObj.GetPath(), "\\", "/"), "/")
 
 	// file rename
 	if !srcObj.IsDir() {
@@ -365,7 +367,7 @@ func (d *SJTUTBox) Rename(ctx context.Context, srcObj model.Obj, newName string)
 			SetContext(ctx).
 			SetQueryParam("access_token", d.accessToken).
 			SetQueryParam("conflict_resolution_strategy", "overwrite").
-			SetBody(map[string]interface{}{"from": srcObj.GetPath()}).
+			SetBody(map[string]interface{}{"from": srcPath}).
 			SetResult(&moveResp).
 			Execute(http.MethodPut, renameURL)
 
@@ -390,14 +392,14 @@ func (d *SJTUTBox) Rename(ctx context.Context, srcObj model.Obj, newName string)
 		}, nil
 	} else {
 		// folder rename
-		renameURL := fmt.Sprintf("%s/file/%s/%s/%s", API_URL, d.libraryId, d.spaceId, d.encodePath(dstPath))
+		renameURL := fmt.Sprintf("%s/directory/%s/%s/%s", API_URL, d.libraryId, d.spaceId, d.encodePath(dstPath))
 
 		resp, err := d.newClient().R().
 			SetContext(ctx).
 			SetQueryParam("access_token", d.accessToken).
 			SetQueryParam("conflict_resolution_strategy", "ask").
 			SetQueryParam("move_authority", "true").
-			SetBody(map[string]interface{}{"from": srcObj.GetPath()}).
+			SetBody(map[string]interface{}{"from": srcPath}).
 			Execute(http.MethodPut, renameURL)
 
 		if err != nil {
