@@ -713,23 +713,9 @@ func (d *SJTUTBox) Put(ctx context.Context, dstDir model.Obj, stream model.FileS
 	// step 2: upload file
 	s3URL := fmt.Sprintf("https://%s%s", initResp.Domain, initResp.Path)
 
-	s3Client := resty.New()
-	s3Request := s3Client.R().SetContext(ctx)
-	for headerKey, headerValue := range initResp.Headers {
-		s3Request.SetHeader(headerKey, headerValue)
-	}
-	s3Request.SetBody(driver.NewLimitedUploadStream(ctx, stream))
-
-	res, err := s3Request.Execute(http.MethodPut, s3URL)
-
-	if err != nil {
+	if err := uploadToStorage(ctx, storageUploadClient, s3URL, initResp.Headers,
+		driver.NewLimitedUploadStream(ctx, stream), stream.GetSize()); err != nil {
 		return nil, err
-	}
-	if res == nil || (res.StatusCode() != http.StatusOK && res.StatusCode() != http.StatusCreated && res.StatusCode() != http.StatusNoContent) {
-		if res == nil {
-			return nil, fmt.Errorf("upload failed: empty response")
-		}
-		return nil, fmt.Errorf("upload failed: status=%d body=%s", res.StatusCode(), responseBody(res))
 	}
 
 	// step 3: confirm the upload

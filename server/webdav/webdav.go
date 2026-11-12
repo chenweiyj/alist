@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -300,6 +301,24 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) (status i
 	return http.StatusNoContent, nil
 }
 
+func putErrorStatus(err error) int {
+	switch {
+	case errs.IsNotFoundError(err), errors.Is(err, os.ErrNotExist):
+		return http.StatusNotFound
+	case errors.Is(err, errs.PermissionDenied), errors.Is(err, os.ErrPermission):
+		return http.StatusForbidden
+	case errs.IsNotSupportError(err), errors.Is(err, errs.UploadNotSupported):
+		return http.StatusMethodNotAllowed
+	case errs.IsNotImplement(err):
+		return http.StatusNotImplemented
+	}
+	var networkError net.Error
+	if errors.As(err, &networkError) && networkError.Timeout() {
+		return http.StatusGatewayTimeout
+	}
+	return http.StatusInternalServerError
+}
+
 func (h *Handler) handlePut(w http.ResponseWriter, r *http.Request) (status int, err error) {
 	reqPath, status, err := h.stripPrefix(r.URL.Path)
 	if err != nil {
@@ -336,15 +355,10 @@ func (h *Handler) handlePut(w http.ResponseWriter, r *http.Request) (status int,
 		fsStream.Mimetype = utils.GetMimeType(reqPath)
 	}
 	err = fs.PutDirectly(ctx, path.Dir(reqPath), fsStream)
-	if errs.IsNotFoundError(err) {
-		return http.StatusNotFound, err
-	}
-
 	_ = r.Body.Close()
 	_ = fsStream.Close()
-	// TODO(rost): Returning 405 Method Not Allowed might not be appropriate.
 	if err != nil {
-		return http.StatusMethodNotAllowed, err
+		return putErrorStatus(err), err
 	}
 	fi, err := fs.Get(ctx, reqPath, &fs.GetArgs{})
 	if err != nil {
