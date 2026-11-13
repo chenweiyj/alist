@@ -33,7 +33,8 @@ type Handler struct {
 	LockSystem LockSystem
 	// Logger is an optional error logger. If non-nil, it will be called
 	// for all HTTP requests.
-	Logger func(*http.Request, error)
+	Logger       func(*http.Request, error)
+	trashDeletes trashDeleteReceipts
 }
 
 func (h *Handler) stripPrefix(p string) (string, int, error) {
@@ -52,6 +53,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	useBufferedWriter := true
 	if h.LockSystem == nil {
 		status, err = http.StatusInternalServerError, errNoLockSystem
+	} else if handled, trashStatus, trashErr := h.handleTrashNamespace(brw, r); handled {
+		status, err = trashStatus, trashErr
 	} else {
 		switch r.Method {
 		case "OPTIONS":
@@ -446,9 +449,10 @@ func (h *Handler) handleCopyMove(w http.ResponseWriter, r *http.Request) (status
 	if dst == src {
 		return http.StatusForbidden, errDestinationEqualsSource
 	}
-
 	ctx := r.Context()
 	user := ctx.Value("user").(*model.User)
+	deleteInsteadOfMove := trashDeleteEnabled(r) && r.Method == "MOVE" &&
+		classifyUserTrashPath(user, dst) == trashItem && classifyUserTrashPath(user, src) == trashOutside
 	src, err = ResolvePath(user, src)
 	if err != nil {
 		return 403, err
@@ -497,6 +501,9 @@ func (h *Handler) handleCopyMove(w http.ResponseWriter, r *http.Request) (status
 		if parseDepth(hdr) != infiniteDepth {
 			return http.StatusBadRequest, errInvalidDepth
 		}
+	}
+	if deleteInsteadOfMove {
+		return h.deleteForTrash(r, src, dst)
 	}
 	return moveFiles(ctx, src, dst, r.Header.Get("Overwrite") == "T")
 }
